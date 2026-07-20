@@ -145,9 +145,6 @@ Retrieved 2026-07-19, License - CC BY-SA 4.0
   .data-table input:focus { outline: none; border-color: var(--accent-color); background: white; }
   .data-table input::placeholder { color: #cbd5e1; font-style: italic; }
 
-  /* Action Bar */
-  .action-bar { display: flex; gap: 16px; justify-content: center; padding: 24px; background: var(--bg-card); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid var(--border-color); margin-top: 24px; margin-bottom: 40px; }
-
   /* Loader Overlay */
   .loader-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.6); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); color: white; }
   .loader-overlay.active { display: flex; }
@@ -425,10 +422,6 @@ Retrieved 2026-07-19, License - CC BY-SA 4.0
     </div>
   </div>
 
-  <!-- Action Bar -->
-  <div class="action-bar">
-    <button class="btn btn-success" id="mainExportInitBtn" disabled>💾 Export Parsed Spreadsheet</button>
-  </div>
 </div>
 
 <!-- Preview Modal -->
@@ -497,7 +490,7 @@ Retrieved 2026-07-19, License - CC BY-SA 4.0
     
     <div class="modal-footer">
       <button class="btn btn-secondary" id="modalCloseBtn">Close Window</button>
-      <button class="btn btn-success" id="modalExportInitBtn">💾 Export Parsed Spreadsheet</button>
+      <button class="btn btn-success" id="modalExportInitBtn" disabled>💾 Export Parsed Spreadsheet</button>
     </div>
   </div>
 </div>
@@ -1089,7 +1082,6 @@ function processData() {
   document.getElementById('previewProgress').style.width = `${matchRate}%`;
   document.getElementById('previewProgress').title = `${matchRate}% Complete`;
   
-  document.getElementById('mainExportInitBtn').disabled = false;
   document.querySelectorAll('#modalExportInitBtn').forEach(btn => btn.disabled = false);
   
   showUnmatchedOnly = false;
@@ -1110,7 +1102,7 @@ function runSilentReprocess() {
   const matchRate = Math.round((fullyMatched / previewResults.length) * 100) || 0;
   document.getElementById('previewStats').textContent = `Total Rows: ${previewResults.length.toLocaleString()} | Completely Matched: ${fullyMatched.toLocaleString()} | Missing Matches: ${(previewResults.length - fullyMatched).toLocaleString()}`;
   document.getElementById('previewProgress').style.width = `${matchRate}%`;
-
+  document.getElementById('previewProgress').title = `${matchRate}% Complete`;
   applyPreviewFilters();
 }
 
@@ -1316,10 +1308,9 @@ function openExportModal() {
 }
 
 function closeExportModal() {
-  exportConfigModal.remove('active');
+  exportConfigModal.classList.remove('active');
 }
 
-document.getElementById('mainExportInitBtn').addEventListener('click', openExportModal);
 document.querySelectorAll('#modalExportInitBtn').forEach(btn => btn.addEventListener('click', openExportModal));
 document.getElementById('closeExportConfigModal').addEventListener('click', closeExportModal);
 document.getElementById('cancelExportBtn').addEventListener('click', closeExportModal);
@@ -1343,8 +1334,11 @@ function buildExportData(format) {
     keywords: headerKeywords
   }));
 
+  if (!uploadedData) return [];
+
   return uploadedData.map((row, idx) => {
     const item = previewResults[idx];
+    if (!item) return { ...row };
     
     if (format === 'extracted') {
       const out = { "Description": item.description };
@@ -1371,13 +1365,15 @@ document.getElementById('confirmExportBtn').addEventListener('click', () => {
   
   setTimeout(() => {
     try {
-      const ws = XLSX.utils.json_to_sheet(buildExportData(selectedFormat));
+      const exportData = buildExportData(selectedFormat);
+      const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new(); 
       XLSX.utils.book_append_sheet(wb, ws, 'Parsed');
       XLSX.writeFile(wb, 'Parsed_Master_Export.xlsx');
       showToast(`Master Spreadsheet File Exported Successfully!`);
     } catch (err) {
       showToast('Export failed', 'error');
+      console.error(err);
     }
     setLoader(false);
   }, 50);
